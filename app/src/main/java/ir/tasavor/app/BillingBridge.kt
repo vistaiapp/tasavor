@@ -40,7 +40,6 @@ class BillingBridge(
     }
 
     private var connection: Connection? = null
-    private var requestCodeCounter = 1000
 
     fun connect() {
         connection = payment.connect {
@@ -66,8 +65,8 @@ class BillingBridge(
         activity.runOnUiThread {
             val request = PurchaseRequest(
                 productId = sku,
-                requestCode = requestCodeCounter++,
-                payload = ""
+                payload = "",
+                dynamicPriceToken = null
             )
             payment.purchaseProduct(
                 registry = activity.activityResultRegistry,
