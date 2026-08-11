@@ -42,7 +42,7 @@ dependencies {
 
     // Cafe Bazaar in-app billing SDK (Poolakey)
     // https://github.com/cafebazaar/Poolakey
-    implementation("com.github.cafebazaar.Poolakey:poolakey:1.5.4")
+    implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
 
     // NOTE: Myket's IAP SDK is not published on a public Maven repo.
     // Download the AAR from Myket's developer panel (devecosystem.myket.ir)
