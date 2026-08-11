@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Tasavor" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand_yellow</item>
+        <item name="colorPrimaryDark">@color/brand_black</item>
+        <item name="colorAccent">@color/brand_yellow</item>
+        <item name="android:statusBarColor">@color/brand_black</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+</resources>
