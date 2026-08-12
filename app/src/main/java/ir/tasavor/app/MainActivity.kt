@@ -1,11 +1,9 @@
 package ir.tasavor.app
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -21,7 +19,6 @@ import android.widget.Button
 import android.widget.ProgressBar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import java.io.File
@@ -39,7 +36,6 @@ class MainActivity : AppCompatActivity() {
     // ---- State for the WebView file chooser (image upload / camera capture) ----
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
-    private var pendingPermissionRequest: PermissionRequest? = null
 
     // Launches the system chooser (gallery picker + "take photo" option) and
     // delivers the picked/captured image(s) back to the WebView's JS file input.
@@ -70,18 +66,6 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         callback.onReceiveValue(uris)
-    }
-
-    // Runtime CAMERA permission, requested only when the web page asks to use it
-    // (e.g. the plugin's "take a photo" reference-image feature).
-    private val cameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        val request = pendingPermissionRequest
-        pendingPermissionRequest = null
-        if (request != null) {
-            if (granted) request.grant(request.resources) else request.deny()
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -130,9 +114,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Handles <input type="file"> clicks (image upload / drag-drop dialog)
-        // and getUserMedia() camera permission requests coming from the site's JS,
-        // e.g. the Qwen image generator plugin's reference-image uploader.
+        // Handles <input type="file"> clicks (image upload / drag-drop dialog),
+        // offering both "pick from gallery" and "take a photo" (system Camera app).
         webView.webChromeClient = object : WebChromeClient() {
 
             override fun onShowFileChooser(
@@ -193,25 +176,13 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPermissionRequest(request: PermissionRequest) {
-                runOnUiThread {
-                    val needsCamera = request.resources.contains(
-                        PermissionRequest.RESOURCE_VIDEO_CAPTURE
-                    )
-                    if (!needsCamera) {
-                        request.grant(request.resources)
-                        return@runOnUiThread
-                    }
-                    val hasCameraPermission = ContextCompat.checkSelfPermission(
-                        this@MainActivity, Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_GRANTED
-
-                    if (hasCameraPermission) {
-                        request.grant(request.resources)
-                    } else {
-                        pendingPermissionRequest = request
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                }
+                // The plugin currently has no getUserMedia() (live camera) feature,
+                // and the app no longer declares the CAMERA permission (it isn't
+                // needed for the "take a photo" option in the file chooser below,
+                // which delegates to the phone's own Camera app instead).
+                // Deny any such request here to avoid a crash from requesting a
+                // runtime permission the manifest doesn't declare.
+                runOnUiThread { request.deny() }
             }
         }
 
