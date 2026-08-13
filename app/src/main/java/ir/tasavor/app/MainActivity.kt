@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
     private lateinit var offlineLayout: View
-    private lateinit var billingBridge: BillingBridge
+    private lateinit var bazaarBridge: BazaarBridge
 
     private val siteUrl by lazy { getString(R.string.site_url) }
 
@@ -79,9 +79,14 @@ class MainActivity : AppCompatActivity() {
         offlineLayout = findViewById(R.id.offlineLayout)
         val retryButton = findViewById<Button>(R.id.retryButton)
 
-        // ---- Billing bridge (Poolakey / Cafe Bazaar) ----
-        billingBridge = BillingBridge(this, webView)
-        billingBridge.connect()
+        // ---- Billing bridge: implementation differs per build flavor ----
+        // (Poolakey for "bazaar", myket-billing-client for "myket", no-op for
+        // "direct" — see app/src/<flavor>/.../BazaarBridge.kt). BuildConfig
+        // fields are set per flavor in app/build.gradle.kts.
+        bazaarBridge = BazaarBridge(this, webView, BuildConfig.MARKET_RSA_KEY)
+        if (BuildConfig.MARKET_ID != "direct") {
+            bazaarBridge.connect()
+        }
 
         // ---- WebView setup ----
         webView.settings.javaScriptEnabled = true
@@ -91,10 +96,14 @@ class MainActivity : AppCompatActivity() {
         webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
         webView.settings.mediaPlaybackRequiresUserGesture = false
 
-        // Expose the billing bridge to JavaScript as `AndroidBilling`
-        // From your site's JS you can call:
-        //   AndroidBilling.purchase('product_sku_id')
-        webView.addJavascriptInterface(billingBridge, "AndroidBilling")
+        // Expose the billing bridge to JavaScript under the name the site's
+        // frontend.js (ai-coin-wallet plugin) expects: AndroidBazaar or
+        // AndroidMyket. The "direct" flavor exposes neither, so the site
+        // falls back to its own ZarinPal checkout automatically.
+        when (BuildConfig.MARKET_ID) {
+            "bazaar" -> webView.addJavascriptInterface(bazaarBridge, "AndroidBazaar")
+            "myket" -> webView.addJavascriptInterface(bazaarBridge, "AndroidMyket")
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -226,7 +235,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        billingBridge.disconnect()
+        if (BuildConfig.MARKET_ID != "direct") {
+            bazaarBridge.disconnect()
+        }
         super.onDestroy()
     }
 }
