@@ -1,0 +1,82 @@
+name: Build Signed Release (all flavors)
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Generate Gradle wrapper if missing
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper --gradle-version 8.7
+            chmod +x gradlew
+          else
+            chmod +x gradlew
+          fi
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.jks
+
+      # هر سه فلیور (bazaar/myket/direct) با یک keystore امضا می‌شوند؛
+      # bazaar از RSA کافه‌بازار و myket از X-Access-Token/RSA مایکت استفاده
+      # می‌کند — هر دو در Settings → Secrets and variables → Actions ذخیره شوند.
+      - name: Build signed release AABs (bazaar, myket, direct)
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BAZAAR_RSA_KEY: ${{ secrets.BAZAAR_RSA_KEY }}
+          MYKET_RSA_KEY: ${{ secrets.MYKET_RSA_KEY }}
+        run: ./gradlew bundleRelease
+
+      - name: Also build signed release APKs (useful for direct/website download)
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BAZAAR_RSA_KEY: ${{ secrets.BAZAAR_RSA_KEY }}
+          MYKET_RSA_KEY: ${{ secrets.MYKET_RSA_KEY }}
+        run: ./gradlew assembleRelease
+
+      - name: Remove keystore file
+        if: always()
+        run: rm -f release.jks
+
+      - name: Upload AAB artifacts (for Bazaar / Myket panels)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasavor-release-aab
+          path: |
+            app/build/outputs/bundle/bazaarRelease/*.aab
+            app/build/outputs/bundle/myketRelease/*.aab
+            app/build/outputs/bundle/directRelease/*.aab
+
+      - name: Upload APK artifacts (direct/website download)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasavor-release-apk
+          path: |
+            app/build/outputs/apk/bazaar/release/*.apk
+            app/build/outputs/apk/myket/release/*.apk
+            app/build/outputs/apk/direct/release/*.apk
