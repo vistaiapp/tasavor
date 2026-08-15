@@ -72,7 +72,7 @@ jobs:
             app/build/outputs/bundle/myketRelease/*.aab
             app/build/outputs/bundle/directRelease/*.aab
 
-      - name: Upload APK artifacts (direct/website download)
+      - name: Upload APK artifacts (direct/website download) — all 3 combined
         uses: actions/upload-artifact@v4
         with:
           name: tasavor-release-apk
@@ -80,3 +80,23 @@ jobs:
             app/build/outputs/apk/bazaar/release/*.apk
             app/build/outputs/apk/myket/release/*.apk
             app/build/outputs/apk/direct/release/*.apk
+
+      # سه Artifact جدا هم آپلود می‌شود تا بدون باز کردن زیپ، مستقیم مشخص باشد
+      # کدام APK مال کدام فلیور است.
+      - name: Upload APK — bazaar flavor only
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasavor-apk-bazaar
+          path: app/build/outputs/apk/bazaar/release/*.apk
+
+      - name: Upload APK — myket flavor only
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasavor-apk-myket
+          path: app/build/outputs/apk/myket/release/*.apk
+
+      - name: Upload APK — direct flavor only
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasavor-apk-direct
+          path: app/build/outputs/apk/direct/release/*.apk
